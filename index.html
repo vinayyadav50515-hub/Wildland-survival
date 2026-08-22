@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Wildland Survival</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#08120d;
+  font-family:Arial,sans-serif;
+  color:white;
+  touch-action:none;
+}
+#game{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  background:#162d1c;
+}
+#hud{
+  position:fixed;
+  top:12px;
+  left:12px;
+  right:12px;
+  display:flex;
+  justify-content:space-between;
+  pointer-events:none;
+  z-index:5;
+}
+.panel{
+  background:rgba(5,12,9,.78);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:14px;
+  padding:10px 12px;
+  backdrop-filter:blur(8px);
+  box-shadow:0 6px 25px rgba(0,0,0,.3);
+}
+.stats{
+  min-width:185px;
+}
+.bar{
+  width:145px;
+  height:9px;
+  background:#26352d;
+  border-radius:10px;
+  overflow:hidden;
+  margin:4px 0;
+}
+.fill{
+  height:100%;
+  border-radius:10px;
+  transition:width .2s;
+}
+#healthFill{background:#e74c3c}
+#foodFill{background:#f1c40f}
+#staminaFill{background:#4fc3f7}
+.small{
+  font-size:12px;
+  opacity:.75;
+}
+#inventory{
+  position:fixed;
+  bottom:14px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:7px;
+  z-index:6;
+}
+.slot{
+  min-width:62px;
+  padding:7px;
+  text-align:center;
+  background:rgba(5,12,9,.85);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  font-size:12px;
+}
+.slot b{
+  display:block;
+  font-size:16px;
+  margin-bottom:2px;
+}
+#craft{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:7;
+  width:230px;
+  max-width:42vw;
+}
+button{
+  border:0;
+  color:white;
+  background:#2d6a45;
+  border-radius:11px;
+  padding:10px 12px;
+  margin:3px;
+  font-weight:bold;
+  cursor:pointer;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+button:active{transform:scale(.96)}
+button:disabled{
+  opacity:.35;
+}
+#craftButtons{
+  display:flex;
+  flex-wrap:wrap;
+}
+#message{
+  position:fixed;
+  top:110px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,.75);
+  padding:10px 18px;
+  border-radius:20px;
+  z-index:10;
+  opacity:0;
+  transition:opacity .3s;
+  pointer-events:none;
+}
+#controls{
+  position:fixed;
+  left:18px;
+  bottom:25px;
+  width:145px;
+  height:145px;
+  z-index:8;
+}
+.ctrl{
+  position:absolute;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  background:rgba(8,18,13,.82);
+  border:1px solid rgba(255,255,255,.18);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:21px;
+  user-select:none;
+}
+#up{left:49px;top:0}
+#down{left:49px;bottom:0}
+#left{left:0;top:49px}
+#right{right:0;top:49px}
+#startScreen{
+  position:fixed;
+  inset:0;
+  z-index:20;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(75,150,92,.35),transparent 35%),
+    linear-gradient(180deg,#10291b,#07110c);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.startBox{
+  width:min(500px,90vw);
+  padding:35px;
+}
+.title{
+  font-size:clamp(42px,10vw,76px);
+  font-weight:900;
+  letter-spacing:-3px;
+  text-shadow:0 8px 25px #000;
+}
+.subtitle{
+  opacity:.75;
+  margin:12px 0 25px;
+  line-height:1.5;
+}
+#startBtn{
+  font-size:18px;
+  padding:15px 30px;
+  background:#3c8b58;
+}
+@media(max-width:700px){
+  #craft{
+    top:105px;
+    right:10px;
+    bottom:auto;
+    width:170px;
+  }
+  .slot{min-width:52px}
+  .stats{min-width:155px}
+  .bar{width:120px}
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="startScreen">
+  <div class="startBox">
+    <div class="title">WILDLAND</div>
+    <div class="subtitle">
+      SURVIVAL<br><br>
+      Explore the wilderness. Gather resources. Build a camp.
+      Survive the night.
+    </div>
+    <button id="startBtn">START SURVIVING</button>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="panel stats">
+    <b>❤️ Survivor</b>
+    <div class="small">Health</div>
+    <div class="bar"><div id="healthFill" class="fill"></div></div>
+    <div class="small">Hunger</div>
+    <div class="bar"><div id="foodFill" class="fill"></div></div>
+    <div class="small">Stamina</div>
+    <div class="bar"><div id="staminaFill" class="fill"></div></div>
+  </div>
+
+  <div class="panel">
+    <b id="timeText">☀️ Day 1</b><br>
+    <span class="small" id="objective">Gather resources</span>
+  </div>
+</div>
+
+<div id="message"></div>
+
+<div id="craft" class="panel">
+  <b>🛠️ Craft</b>
+  <div id="craftButtons">
+    <button id="campBtn">🔥 Campfire</button>
+    <button id="axeBtn">🪓 Axe</button>
+    <button id="foodBtn">🍖 Cook Food</button>
+  </div>
+</div>
+
+<div id="inventory">
+  <div class="slot"><b>🪵 <span id="wood">0</span></b>Wood</div>
+  <div class="slot"><b>🪨 <span id="stone">0</span></b>Stone</div>
+  <div class="slot"><b>🍓 <span id="berries">0</span></b>Berries</div>
+  <div class="slot"><b>🔥 <span id="campfires">0</span></b>Camp</div>
+</div>
+
+<div id="controls">
+  <div class="ctrl" id="up">▲</div>
+  <div class="ctrl" id="down">▼</div>
+  <div class="ctrl" id="left">◀</div>
+  <div class="ctrl" id="right">▶</div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let W=innerWidth,H=innerHeight,DPR=Math.min(devicePixelRatio||1,2);
+
+function resize(){
+  W=innerWidth; H=innerHeight;
+  canvas.width=W*DPR;
+  canvas.height=H*DPR;
+  canvas.style.width=W+"px";
+  canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener("resize",resize);
+resize();
+
+const world={
+  size:3600,
+  tile:80
+};
+
+const player={
+  x:1800,
+  y:1800,
+  r:18,
+  speed:3.2,
+  health:100,
+  hunger:100,
+  stamina:100,
+  facing:0
+};
+
+const inv={
+  wood:0,
+  stone:0,
+  berries:3,
+  campfires:0,
+  cooked:0,
+  axe:false
+};
+
+let trees=[];
+let rocks=[];
+let bushes=[];
+let animals=[];
+let fires=[];
+let particles=[];
+let keys={};
+let gameStarted=false;
+let last=performance.now();
+let dayTime=0;
+let day=1;
+let messageTimer=0;
+
+function rand(a,b){
+  return Math.random()*(b-a)+a;
+}
+
+function distance(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
+
+function generateWorld(){
+  trees=[];
+  rocks=[];
+  bushes=[];
+  animals=[];
+
+  for(let i=0;i<130;i++){
+    trees.push({
+      x:rand(80,world.size-80),
+      y:rand(80,world.size-80),
+      hp:3,
+      r:28
+    });
+  }
+
+  for(let i=0;i<90;i++){
+    rocks.push({
+      x:rand(60,world.size-60),
+      y:rand(60,world.size-60),
+      hp:2,
+      r:24
+    });
+  }
+
+  for(let i=0;i<100;i++){
+    bushes.push({
+      x:rand(50,world.size-50),
+      y:rand(50,world.size-50),
+      berries:2,
+      r:20
+    });
+  }
+
+  for(let i=0;i<16;i++){
+    animals.push({
+      x:rand(200,world.size-200),
+      y:rand(200,world.size-200),
+      r:18,
+      hp:35,
+      vx:0,
+      vy:0,
+      timer:rand(0,5),
+      hostile:Math.random()<.35
+    });
+  }
+}
+
+generateWorld();
+
+function saveGame(){
+  localStorage.setItem("wildlandSave",JSON.stringify({
+    player,
+    inv,
+    day,
+    dayTime,
+    fires
+  }));
+}
+
+function loadGame(){
+  try{
+    const data=JSON.parse(localStorage.getItem("wildlandSave"));
+    if(!data)return;
+    Object.assign(player,data.player);
+    Object.assign(inv,data.inv);
+    day=data.day||1;
+    dayTime=data.dayTime||0;
+    fires=data.fires||[];
+    toast("Welcome back, survivor.");
+  }catch(e){}
+}
+
+function toast(text){
+  const el=document.getElementById("message");
+  el.textContent=text;
+  el.style.opacity=1;
+  messageTimer=2;
+}
+
+function nearest(arr,maxDist){
+  let best=null;
+  let bd=maxDist;
+  for(const o of arr){
+    const d=distance(player,o);
+    if(d<bd){
+      bd=d;
+      best=o;
+    }
+  }
+  return best;
+}
+
+function gather(){
+  let t=nearest(trees,65);
+  if(t){
+    t.hp--;
+    inv.wood+=2;
+    particles.push({x:t.x,y:t.y,text:"+2 wood",life:1});
+    if(t.hp<=0){
+      const i=trees.indexOf(t);
+      trees.splice(i,1);
+      toast("Tree chopped.");
+    }
+    saveGame();
+    return;
+  }
+
+  let r=nearest(rocks,65);
+  if(r){
+    r.hp--;
+    inv.stone++;
+    particles.push({x:r.x,y:r.y,text:"+1 stone",life:1});
+    if(r.hp<=0){
+      rocks.splice(rocks.indexOf(r),1);
+    }
+    saveGame();
+    return;
+  }
+
+  let b=nearest(bushes,65);
+  if(b){
+    inv.berries+=b.berries;
+    particles.push({x:b.x,y:b.y,text:"+"+b.berries+" berries",life:1});
+    bushes.splice(bushes.indexOf(b),1);
+    saveGame();
+    return;
+  }
+
+  toast("Nothing nearby to gather.");
+}
+
+function craftCamp(){
+  if(inv.wood>=6 && inv.stone>=3){
+    inv.wood-=6;
+    inv.stone-=3;
+    inv.campfires++;
+    fires.push({x:player.x,y:player.y});
+    toast("🔥 Campfire built!");
+    saveGame();
+  }else{
+    toast("Need 6 wood + 3 stone.");
+  }
+}
+
+function craftAxe(){
+  if(inv.axe){
+    toast("You already have an axe.");
+    return;
+  }
+  if(inv.wood>=8 && inv.stone>=4){
+    inv.wood-=8;
+    inv.stone-=4;
+    inv.axe=true;
+    player.speed=3.8;
+    toast("🪓 Axe crafted!");
+    saveGame();
+  }else{
+    toast("Need 8 wood + 4 stone.");
+  }
+}
+
+function cookFood(){
+  if(inv.berries>=2 && inv.campfires>0){
+    inv.berries-=2;
+    inv.cooked++;
+    toast("🍖 Cooked food +1");
+    saveGame();
+  }else{
+    toast("Need 2 berries and a campfire.");
+  }
+}
+
+function eat(){
+  if(inv.cooked>0){
+    inv.cooked--;
+    player.hunger=Math.min(100,player.hunger+35);
+    player.health=Math.min(100,player.health+5);
+    toast("🍖 You ate cooked food.");
+    saveGame();
+  }else if(inv.berries>0){
+    inv.berries--;
+    player.hunger=Math.min(100,player.hunger+15);
+    toast("🍓 You ate berries.");
+    saveGame();
+  }
+}
+
+document.getElementById("campBtn").onclick=craftCamp;
+document.getElementById("axeBtn").onclick=craftAxe;
+document.getElementById("foodBtn").onclick=cookFood;
+
+addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+
+  if(e.key===" "){
+    e.preventDefault();
+    gather();
+  }
+
+  if(e.key.toLowerCase()==="e") eat();
+});
+
+addEventListener("keyup",e=>{
+  keys[e.key.toLowerCase()]=false;
+});
+
+const dirs={
+  up:false,
+  down:false,
+  left:false,
+  right:false
+};
+
+function control(id,key){
+  const el=document.getElementById(id);
+
+  const on=()=>{
+    dirs[key]=true;
+  };
+
+  const off=()=>{
+    dirs[key]=false;
+  };
+
+  el.addEventListener("pointerdown",on);
+  el.addEventListener("pointerup",off);
+  el.addEventListener("pointercancel",off);
+  el.addEventListener("pointerleave",off);
+}
+
+control("up","up");
+control("down","down");
+control("left","left");
+control("right","right");
+
+canvas.addEventListener("pointerdown",e=>{
+  if(!gameStarted)return;
+  gather();
+});
+
+document.getElementById("startBtn").onclick=()=>{
+  gameStarted=true;
+  document.getElementById("startScreen").style.display="none";
+  loadGame();
+};
+
+function update(dt){
+  if(!gameStarted)return;
+
+  let dx=0,dy=0;
+
+  if(keys.w||keys.arrowup||dirs.up)dy--;
+  if(keys.s||keys.arrowdown||dirs.down)dy++;
+  if(keys.a||keys.arrowleft||dirs.left)dx--;
+  if(keys.d||keys.arrowright||dirs.right)dx++;
+
+  if(dx||dy){
+    const len=Math.hypot(dx,dy);
+    dx/=len;dy/=len;
+
+    let speed=player.speed;
+
+    if(player.stamina>0){
+      player.stamina=Math.max(0,player.stamina-dt*5);
+    }else{
+      speed*=.55;
+    }
+
+    player.x+=dx*speed*60*dt;
+    player.y+=dy*speed*60*dt;
+
+    player.x=Math.max(25,Math.min(world.size-25,player.x));
+    player.y=Math.max(25,Math.min(world.size-25,player.y));
+  }else{
+    player.stamina=Math.min(100,player.stamina+dt*8);
+  }
+
+  dayTime+=dt;
+
+  if(dayTime>=60){
+    dayTime=0;
+    day++;
+    toast("☀️ Day "+day+" begins.");
+    saveGame();
+  }
+
+  player.hunger-=dt*.65;
+
+  if(player.hunger<=0){
+    player.hunger=0;
+    player.health-=dt*2;
+  }
+
+  for(const fire of fires){
+    if(distance(player,fire)<130){
+      player.health=Math.min(100,player.health+dt*1.2);
+    }
+  }
+
+  for(const a of animals){
+    a.timer-=dt;
+
+    if(a.timer<=0){
+      a.timer=rand(1,4);
+      const ang=rand(0,Math.PI*2);
+      a.vx=Math.cos(ang);
+      a.vy=Math.sin(ang);
+    }
+
+    if(a.hostile && distance(a,player)<260){
+      const dx=player.x-a.x;
+      const dy=player.y-a.y;
+      const len=Math.hypot(dx,dy)||1;
+      a.vx=dx/len;
+      a.vy=dy/len;
+
+      if(len<35){
+        player.health-=dt*8;
+      }
+    }
+
+    a.x+=a.vx*35*dt;
+    a.y+=a.vy*35*dt;
+
+    a.x=Math.max(30,Math.min(world.size-30,a.x));
+    a.y=Math.max(30,Math.min(world.size-30,a.y));
+  }
+
+  if(player.health<=0){
+    player.health=100;
+    player.hunger=70;
+    player.x=1800;
+    player.y=1800;
+    inv.wood=Math.floor(inv.wood*.5);
+    inv.stone=Math.floor(inv.stone*.5);
+    toast("You collapsed... resources were lost.");
+    saveGame();
+  }
+
+  for(const p of particles){
+    p.y-=20*dt;
+    p.life-=dt;
+  }
+  particles=particles.filter(p=>p.life>0);
+
+  if(messageTimer>0){
+    messageTimer-=dt;
+    if(messageTimer<=0){
+      document.getElementById("message").style.opacity=0;
+    }
+  }
+
+  updateUI();
+}
+
+function updateUI(){
+  document.getElementById("healthFill").style.width=player.health+"%";
+  document.getElementById("foodFill").style.width=player.hunger+"%";
+  document.getElementById("staminaFill").style.width=player.stamina+"%";
+
+  document.getElementById("wood").textContent=inv.wood;
+  document.getElementById("stone").textContent=inv.stone;
+  document.getElementById("berries").textContent=inv.berries;
+  document.getElementById("campfires").textContent=inv.campfires;
+
+  const night=dayTime>42;
+  document.getElementById("timeText").textContent=
+    (night?"🌙":"☀️")+" Day "+day;
+
+  document.getElementById("objective").textContent=
+    inv.campfires===0
+      ?"Gather 6 wood + 3 stone"
+      :inv.axe===false
+        ?"Craft an axe"
+        :"Explore and survive";
+}
+
+function camera(){
+  return {
+    x:Math.max(0,Math.min(world.size-W,player.x-W/2)),
+    y:Math.max(0,Math.min(world.size-H,player.y-H/2))
+  };
+}
+
+function drawGround(cam){
+  ctx.fillStyle="#1d4b2b";
+  ctx.fillRect(0,0,W,H);
+
+  const grid=80;
+
+  for(let x=Math.floor(cam.x/grid)*grid;x<cam.x+W+grid;x+=grid){
+    for(let y=Math.floor(cam.y/grid)*grid;y<cam.y+H+grid;y+=grid){
+      const n=(x*17+y*31)%100;
+
+      if(n<12){
+        ctx.fillStyle="#245933";
+      }else if(n<20){
+        ctx.fillStyle="#204f2d";
+      }else{
+        ctx.fillStyle="#1d4b2b";
+      }
+
+      ctx.fillRect(x-cam.x,y-cam.y,grid,grid);
+
+      ctx.fillStyle="rgba(255,255,255,.025)";
+      ctx.fillRect(x-cam.x,y-cam.y,grid,1);
+    }
+  }
+}
+
+function drawTree(t,cam){
+  const x=t.x-cam.x,y=t.y-cam.y;
+
+  ctx.fillStyle="rgba(0,0,0,.25)";
+  ctx.beginPath();
+  ctx.ellipse(x,y+20,31,11,0,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#5b3b24";
+  ctx.fillRect(x-7,y-3,14,37);
+
+  ctx.fillStyle="#123d25";
+  ctx.beginPath();
+  ctx.arc(x,y-12,29,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#1f6134";
+  ctx.beginPath();
+  ctx.arc(x-15,y-5,20,0,Math.PI*2);
+  ctx.arc(x+15,y-7,20,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawRock(r,cam){
+  const x=r.x-cam.x,y=r.y-cam.y;
+
+  ctx.fillStyle="rgba(0,0,0,.25)";
+  ctx.beginPath();
+  ctx.ellipse(x,y+14,28,9,0,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#727b78";
+  ctx.beginPath();
+  ctx.moveTo(x-24,y+10);
+  ctx.lineTo(x-15,y-14);
+  ctx.lineTo(x+8,y-21);
+  ctx.lineTo(x+25,y);
+  ctx.lineTo(x+14,y+17);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle="#9ca5a1";
+  ctx.beginPath();
+  ctx.moveTo(x-13,y-10);
+  ctx.lineTo(x+7,y-17);
+  ctx.lineTo(x+14,y-2);
+  ctx.lineTo(x-4,y+1);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawBush(b,cam){
+  const x=b.x-cam.x,y=b.y-cam.y;
+
+  ctx.fillStyle="#174d2c";
+  ctx.beginPath();
+  ctx.arc(x,y,21,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#e74c3c";
+  for(let i=0;i<4;i++){
+    const a=i*Math.PI/2;
+    ctx.beginPath();
+    ctx.arc(x+Math.cos(a)*10,y+Math.sin(a)*8,4,0,Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawAnimal(a,cam){
+  const x=a.x-cam.x,y=a.y-cam.y;
+
+  ctx.fillStyle=a.hostile?"#9b4d36":"#aa8b5b";
+
+  ctx.beginPath();
+  ctx.ellipse(x,y,22,14,0,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x+18,y-5,9,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#111";
+  ctx.beginPath();
+  ctx.arc(x+21,y-7,2,0,Math.PI*2);
+  ctx.fill();
+
+  if(a.hostile){
+    ctx.fillStyle="#ff6961";
+    ctx.font="12px Arial";
+    ctx.fillText("!",x+20,y-18);
+  }
+}
+
+function drawFire(f,cam){
+  const x=f.x-cam.x,y=f.y-cam.y;
+
+  ctx.fillStyle="rgba(255,150,40,.16)";
+  ctx.beginPath();
+  ctx.arc(x,y,65,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#6d3b1e";
+  ctx.fillRect(x-20,y-5,40,10);
+
+  ctx.fillStyle="#ffb52e";
+  ctx.beginPath();
+  ctx.moveTo(x,y-36);
+  ctx.quadraticCurveTo(x+18,y-8,x,y+5);
+  ctx.quadraticCurveTo(x-18,y-8,x,y-36);
+  ctx.fill();
+
+  ctx.fillStyle="#fff1a8";
+  ctx.beginPath();
+  ctx.arc(x,y-9,7,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawPlayer(cam){
+  const x=player.x-cam.x,y=player.y-cam.y;
+
+  ctx.fillStyle="rgba(0,0,0,.3)";
+  ctx.beginPath();
+  ctx.ellipse(x,y+19,20,8,0,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#34495e";
+  ctx.fillRect(x-14,y-2,28,27);
+
+  ctx.fillStyle="#e1ad82";
+  ctx.beginPath();
+  ctx.arc(x,y-13,15,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#2d2018";
+  ctx.beginPath();
+  ctx.arc(x,y-18,15,Math.PI,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#fff";
+  ctx.beginPath();
+  ctx.arc(x-5,y-14,2,0,Math.PI*2);
+  ctx.arc(x+5,y-14,2,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawParticles(cam){
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 14px Arial";
+    ctx.fillText(p.text,p.x-cam.x,p.y-cam.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawLighting(){
+  const night=Math.max(0,(dayTime-35)/25);
+  if(night<=0)return;
+
+  const g=ctx.createRadialGradient(
+    W/2,H/2,80,
+    W/2,H/2,Math.max(W,H)*.75
+  );
+
+  g.addColorStop(0,"rgba(5,10,35,0)");
+  g.addColorStop(1,`rgba(3,6,25,${.62*night})`);
+
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,W,H);
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  const cam=camera();
+
+  drawGround(cam);
+
+  for(const b of bushes)drawBush(b,cam);
+  for(const r of rocks)drawRock(r,cam);
+  for(const t of trees)drawTree(t,cam);
+  for(const a of animals)drawAnimal(a,cam);
+  for(const f of fires)drawFire(f,cam);
+
+  drawPlayer(cam);
+  drawParticles(cam);
+  drawLighting();
+}
+
+function loop(now){
+  const dt=Math.min(.033,(now-last)/1000);
+  last=now;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
